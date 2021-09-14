@@ -9,7 +9,10 @@ def get_slope(p1, p2):
     return (p2[1] - p1[1]) / (p2[0] - p1[0])
 
 def get_cos(p1, p2):
-    return np.sum(p1*p2)/np.sqrt(np.sum(p1**2))/np.sqrt(np.sum(p2**2))
+    ret = np.sum(p1*p2)/np.sqrt(np.sum(p1**2))/np.sqrt(np.sum(p2**2))
+    ret = min(ret, 1.0)
+    ret = max(ret, -1.0)
+    return ret
 
 def parallel(p1, p2, k):
     return get_cos(p1, p2) >= k
@@ -58,7 +61,7 @@ def checkk(p1,p2, k):
 
 def get_k(p1, p2):
     l, r = 0.0, 0.0
-    for i in range(0,4):
+    for i in range(0, 4):
         r = max(r, np.max(p1/p2))
     while r - l > 1e-4:
         lmid, rmid = l+(r-l)/3, r-(r-l)/3
@@ -68,11 +71,16 @@ def get_k(p1, p2):
             l=lmid
     return (lmid + rmid) / 2
 
+def normalization(p):
+    return p / np.sqrt(np.sum(p**2))
+
 class ModeMatch:
     sum_W_L = 0
     sum_W_S = 0
+    sum_W_mu = 0
     sum_M_L = 0
     sum_M_S = 0
+    sum_M_mu = 0
     sum_W = 0
     sum_M = 0
     W = None
@@ -81,6 +89,7 @@ class ModeMatch:
     M = None
     M_L = None
     M_S = None
+
 
     def __init__(self, k1, k2):
         self.k1 = k1
@@ -115,6 +124,7 @@ class ModeMatch:
                 self.sum_W += 1
                 self.sum_W_L += kl * L[i + 4]
                 self.sum_W_S += ks * S[i + 4]
+                self.sum_W_mu += normalization(np.array([extreme[i + 5]]) - p[4])
             else:
                 if check_m(self.k1, self.k2, p) == False:
                     continue
@@ -129,14 +139,34 @@ class ModeMatch:
                 self.sum_M += 1
                 self.sum_M_L += kl * L[i + 4]
                 self.sum_M_S += ks * S[i + 4]
+                self.sum_M_mu += normalization(np.array([extreme[i + 5]]) - p[4])
         return
 
     def predict_m(self):
         if (self.sum_M == 0):
-            return 0, 0
-        return self.sum_M_L / self.sum_M, self.sum_M_S / self.sum_M
+            return 0, 0, 0
+        return self.sum_M_L / self.sum_M, self.sum_M_S / self.sum_M, self.sum_M_mu / self.sum_M
 
     def predict_w(self):
         if(self.sum_W == 0):
-            return 0 ,0
-        return self.sum_W_L / self.sum_W, self.sum_W_S / self.sum_W
+            return 0 , 0, 0
+        return self.sum_W_L / self.sum_W, self.sum_W_S / self.sum_W, self.sum_W_mu / self.sum_W
+
+    def cal_error(self):
+        if self.sum_W == 0:
+            err_W = 0.0
+        else:
+            p = normalization(np.array([1.0, self.sum_W_S / self.sum_W]))*(self.sum_W_L / self.sum_W)
+            cos = get_cos(p, self.sum_W_mu / self.sum_W)
+            print(cos)
+            err_W = math.acos(cos)
+
+        if self.sum_M == 0:
+            err_M = 0.0
+        else:
+            p = normalization(np.array([1.0, self.sum_M_S / self.sum_M]))*(self.sum_M_L / self.sum_M)
+            cos = get_cos(p, self.sum_M_mu / self.sum_M)
+            print(cos)
+            err_M = math.acos(cos)
+
+        return err_W, err_M

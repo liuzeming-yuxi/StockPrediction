@@ -26,5 +26,6 @@ if __name__ == "__main__":
         plotter.update(x, y)
         modematch = mode_match.ModeMatch(0.8, 0.2)
         modematch.fit(plotter.extreme)
-        print(modematch.predict_m())
         print(modematch.predict_w())
+        print(modematch.predict_m())
+        print(modematch.cal_error())
